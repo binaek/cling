@@ -4,81 +4,149 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 )
 
-func Hydrate[T any](ctx context.Context, args []string, destination *T) error {
-	// parse the arguments
-	flags, args := parseArguments(args)
-	defFlags, defArgs, err := extractConfigDefinitions(destination)
-	if err != nil {
-		return err
+type configTarget struct {
+	valType   reflect.Type
+	structIdx int
+}
+
+type ConfigTargets map[string]configTarget
+
+func Hydrate[T any](ctx context.Context, argArguments []string, destination *T) error {
+	cmd, ok := CommandFromContext(ctx)
+	if !ok {
+		return errors.New("no command found in context")
 	}
 
-	// verify that there are no non-optional arguments after an optional one
-	for idx, arg := range defArgs {
-		if arg.optional && idx < len(defArgs)-1 && !defArgs[idx+1].optional {
-			return fmt.Errorf("non-optional argument %s after optional argument %s", defArgs[idx+1].description, arg.description)
+	// parse the arguments
+	argFlags, argArguments := parseArguments(argArguments)
+	targets, err := extractConfigTargets(destination)
+	if err != nil {
+		return errors.Wrap(err, "failed to extract config targets")
+	}
+
+	// make sure that we have targets for all required
+	for _, cmdFlag := range cmd.flags {
+		if !cmdFlag.isRequired() {
+			continue
+		}
+		if _, found := targets[cmdFlag.Name()]; !found {
+			return errors.Errorf("could not find target for required flag: '%s'", cmdFlag.Name())
+		}
+	}
+
+	for _, cmdArg := range cmd.arguments {
+		if !cmdArg.isRequired() {
+			continue
+		}
+		if _, found := targets[cmdArg.Name()]; !found {
+			return errors.Errorf("could not find target for required argument: '%s'", cmdArg.Name())
 		}
 	}
 
 	destVal := reflect.ValueOf(destination).Elem()
 
-	for _, flag := range defFlags {
-		flagValues, ok := flags[flag.name]
-		if !ok || len(flagValues) == 0 {
-			if !flag.optional {
-				return fmt.Errorf("missing required flag %s", flag.name)
-			}
-			continue // No values provided for this flag
-		}
-		field := destVal.Field(flag.structIdx)
-		if !field.IsValid() || !field.CanSet() {
-			return fmt.Errorf("no field found for flag '%s'", flag.name)
-		}
+	if err := hydrateFlags(cmd, argFlags, destVal, targets); err != nil {
+		return err
+	}
 
-		if field.Kind() == reflect.Slice {
-			for _, valueStr := range flagValues {
-				if err := setFieldFromString(field, valueStr); err != nil {
-					return errors.Wrapf(err, "failed to set flag '%s'", flag.name)
-				}
+	if err := hydrateArgs(cmd, argArguments, destVal, targets); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets ConfigTargets) error {
+	// verify we have at least the required number of arguments
+	requiredArguments := 0
+	for _, argument := range cmd.arguments {
+		if argument.isRequired() {
+			requiredArguments++
+		}
+	}
+
+	if len(args) < requiredArguments {
+		return errors.Errorf("missing at least one required argument. need '%d' - got '%d'", requiredArguments, len(args))
+	}
+
+	for idx, argument := range cmd.arguments {
+		target, ok := targets[argument.Name()]
+		field := destination.Field(target.structIdx)
+		if idx < len(args) {
+			if !ok {
+				return errors.Errorf("could not find target for '%s'", argument.Name())
+			}
+			if err := setFieldFromString(field, args[idx]); err != nil {
+				return errors.Wrapf(err, "failed to set argument '%s'", argument.Name())
 			}
 		} else {
-			valueStr := flagValues[0]
-			if err := setFieldFromString(field, valueStr); err != nil {
-				return errors.Wrapf(err, "failed to set flag '%s'", flag.name)
+			// go with default
+			val := fmt.Sprint(argument.getDefault())
+			if ok {
+				// put in the default
+				if err := setFieldFromString(field, val); err != nil {
+					return errors.Wrapf(err, "failed to set argument '%s'", argument.Name())
+				}
 			}
 		}
 	}
 
-	// Populate positionals
-	for i, p := range defArgs {
-		if i >= len(args) {
-			continue // Not enough positional arguments provided
+	// now set the default value if we didn't get one
+
+	return nil
+}
+
+func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value, targets ConfigTargets) error {
+	// get defined flags
+	for name, flag := range cmd.flags {
+		values, ok := v[name]
+
+		if !ok && flag.hasDefault() {
+			// put in the default
+			values = append(values, fmt.Sprint(flag.getDefault()))
 		}
 
-		field := destVal.Field(p.structIdx)
-		if !field.IsValid() || !field.CanSet() {
-			return fmt.Errorf("no field found for positional argument '%s'", p.name)
+		if (flag.isRequired()) && (!ok || len(values) == 0) {
+			return errors.Errorf("missing required flag '%s'", flag.Name())
 		}
 
-		valueStr := args[i]
-		if err := setFieldFromString(field, valueStr); err != nil {
-			return errors.Wrapf(err, "failed to set positional argument '%s'", p.name)
+		target, ok := targets[name]
+		if !ok {
+			return errors.Errorf("could not find target for '%s'", name)
+		}
+		field := destination.Field(target.structIdx)
+
+		if !field.IsValid() {
+			return errors.Errorf("no valid field found for flag '%s'", name)
+		}
+		if !field.CanSet() {
+			return errors.Errorf("field for flag '%s' cannot be set", name)
+		}
+		if field.Kind() == reflect.Slice {
+			for _, valueStr := range values {
+				if err := setFieldFromString(field, valueStr); err != nil {
+					return errors.Wrapf(err, "failed to set flag '%s'", name)
+				}
+			}
+		} else {
+			valueStr := values[0]
+			if err := setFieldFromString(field, valueStr); err != nil {
+				return errors.Wrapf(err, "failed to set flag '%s'", name)
+			}
 		}
 	}
 
 	return nil
 }
 
-func parseArguments(args []string) (map[string][]string, []string) {
-	flags := make(map[string][]string)
-	var positionals []string
-
+func parseArguments(args []string) (flags map[string][]string, arguments []string) {
+	flags = make(map[string][]string)
+	arguments = make([]string, 0)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if strings.HasPrefix(arg, "--") {
@@ -96,104 +164,39 @@ func parseArguments(args []string) (map[string][]string, []string) {
 				flags[flagName] = append(flags[flagName], "")
 			}
 		} else {
-			positionals = append(positionals, arg)
+			arguments = append(arguments, arg)
 		}
 	}
 
-	return flags, positionals
+	return flags, arguments
 }
 
-func extractConfigDefinitions(config any) ([]*Flag, []*Arg, error) {
-	var flags []*Flag
-	var positionals []*Arg
-
+func extractConfigTargets(config any) (targets map[string]configTarget, e error) {
+	targets = make(map[string]configTarget)
 	configType := reflect.TypeOf(config)
 	if configType.Kind() != reflect.Ptr || configType.Elem().Kind() != reflect.Struct {
-		return nil, nil, fmt.Errorf("CLIng can only parse command line arguments into structs, got %v", configType.Kind())
+		return nil, fmt.Errorf("CLIng can only parse command line arguments into structs, got %v", configType.Kind())
 	}
 
 	v := reflect.ValueOf(config).Elem()
 	t := v.Type()
 
 	for i := 0; i < v.NumField(); i++ {
-		fieldType := t.Field(i)
-		if arg, err := getPositionalFromStructField(fieldType, i); err == nil && arg != nil {
-			positionals = append(positionals, arg)
-		} else if flag, err := getFlagFromStructField(fieldType, i); err == nil && flag != nil {
-			flags = append(flags, flag)
-		} else if err != nil {
-			return nil, nil, err
+		field := t.Field(i)
+		nameTag, ok := field.Tag.Lookup("cling-name")
+		if !ok {
+			// this is not a field we are interested in
+			continue
 		}
+		target := configTarget{
+			valType:   field.Type,
+			structIdx: i,
+		}
+		if _, ok := targets[nameTag]; ok {
+			return nil, errors.Errorf("found duplicate 'cling:name' in config")
+		}
+		targets[nameTag] = target
 	}
 
-	slices.SortStableFunc(positionals, func(left *Arg, right *Arg) int {
-		return left.position - right.position
-	})
-
-	return flags, positionals, nil
-}
-
-func getFlagFromStructField(field reflect.StructField, index int) (*Flag, error) {
-	tag, ok := field.Tag.Lookup("name")
-	if !ok {
-		return nil, fmt.Errorf("flag field must have a name tag")
-	}
-
-	flag := &Flag{
-		name:        tag,
-		description: "",
-		shorthand:   0,
-		flagType:    field.Type,
-		structIdx:   index,
-	}
-
-	description, ok := field.Tag.Lookup("description")
-	if ok {
-		flag.description = description
-	}
-
-	short, ok := field.Tag.Lookup("short")
-	if len(short) != 1 {
-		return nil, fmt.Errorf("short flag must be a single character")
-	}
-	if ok {
-		flag.shorthand = rune(short[0])
-	}
-
-	if field.Type.Kind() == reflect.Pointer {
-		flag.optional = true
-	}
-
-	return flag, nil
-}
-
-func getPositionalFromStructField(field reflect.StructField, index int) (*Arg, error) {
-	tag, ok := field.Tag.Lookup("position")
-	if !ok {
-		return nil, nil
-	}
-
-	position, err := strconv.Atoi(tag)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to convert positional tag to int: '%s'", tag)
-	}
-
-	arg := &Arg{
-		description: "",
-		position:    position,
-		argType:     field.Type,
-		structIdx:   index,
-		name:        field.Tag.Get("name"),
-	}
-
-	description, ok := field.Tag.Lookup("description")
-	if ok {
-		arg.description = description
-	}
-
-	if field.Type.Kind() == reflect.Pointer {
-		arg.optional = true
-	}
-
-	return arg, nil
+	return targets, nil
 }

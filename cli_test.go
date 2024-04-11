@@ -8,28 +8,22 @@ import (
 )
 
 type Config struct {
-	WorkspacePath     string   `name:"workspace-path1" position:"0" description:"The workspace path1"`
-	WorkspacePath1    string   `name:"workspace-path2" position:"1" description:"The workspace path2"`
-	WorkspacePath2    string   `name:"workspace-path3" position:"2" description:"The workspace path3"`
-	WorkspaceDatabase string   `name:"workspace-database" short:"w" description:"The workspace database"`
-	BoolVal           *bool    `name:"boolval" short:"b" description:"A boolean value"`
-	BoolVal2          bool     `name:"boolval2" short:"B" description:"A boolean value"`
-	StrSliceVal       []string `name:"strsliceval" short:"s" description:"A string slice value"`
-	IntSliceVal       []int    `name:"intsliceval" short:"i" description:"An int slice value"`
+	Positional1 string `cling-name:"positional1"`
+	Positional2 string `cling-name:"positional2"`
+	Positional3 string `cling-name:"positional3"`
+	StringFlag1 string `cling-name:"stringflag1"`
+	IntFlag1    int    `cling-name:"intflag1"`
 }
 
 func (c *Config) String() string {
 	var sb strings.Builder
 
 	sb.WriteString("Config{\n")
-	sb.WriteString(fmt.Sprintf("  WorkspacePath: %s,\n", c.WorkspacePath))
-	sb.WriteString(fmt.Sprintf("  WorkspacePath1: %s,\n", c.WorkspacePath1))
-	sb.WriteString(fmt.Sprintf("  WorkspacePath2: %s,\n", c.WorkspacePath2))
-	sb.WriteString(fmt.Sprintf("  WorkspaceDatabase: %s,\n", c.WorkspaceDatabase))
-	sb.WriteString(fmt.Sprintf("  BoolVal: %t,\n", *c.BoolVal))
-	sb.WriteString(fmt.Sprintf("  BoolVal2: %t,\n", c.BoolVal2))
-	sb.WriteString(fmt.Sprintf("  StrSliceVal: %v,\n", c.StrSliceVal))
-	sb.WriteString(fmt.Sprintf("  IntSliceVal: %v,\n", c.IntSliceVal))
+	sb.WriteString(fmt.Sprintf("  Positional1: %s\n", c.Positional1))
+	sb.WriteString(fmt.Sprintf("  Positional2: %s\n", c.Positional2))
+	sb.WriteString(fmt.Sprintf("  Positional3: %s\n", c.Positional3))
+	sb.WriteString(fmt.Sprintf("  StringFlag1: %s\n", c.StringFlag1))
+	sb.WriteString(fmt.Sprintf("  IntFlag1: %d\n", c.IntFlag1))
 	sb.WriteString("}")
 
 	return sb.String()
@@ -46,11 +40,37 @@ func action(ctx context.Context, args []string) error {
 
 func TestRun(t *testing.T) {
 	cli := NewCLI("test", "0.0.1").
-		AddCommand(NewCommand("subcmd1", action)).
-		AddCommand(NewCommand("subcmd2", action))
+		AddCommand(
+			NewCommand("subcmd1", action).
+				WithArgument(
+					NewIntCmdInput("positional1").AsArgument(),
+				).
+				WithArgument(
+					NewIntCmdInput("positional2").AsArgument(),
+				).
+				WithArgument(
+					NewIntCmdInput("positional3").AsArgument(),
+				).
+				WithFlag(
+					NewStringCmdInput("stringflag1").
+						WithDefault("default").
+						AsFlag(),
+				).
+				WithFlag(
+					NewIntCmdInput("intflag1").Required(),
+				),
+		)
 
 	ctx := context.Background()
-	err := cli.Run(ctx, []string{"test", "subcmd1", "pos1", "pos2", "pos3", "--strsliceval", "val1", "--strsliceval", "val2", "--intsliceval", "1", "--intsliceval", "2", "--workspace-database", "testdb", "--boolval", "--boolval2", "false", "workspace"})
+	err := cli.Run(ctx, []string{
+		"test",
+		"subcmd1",
+		"pos1",
+		"pos2",
+		"pos3",
+		// "--stringflag1", "stringflag1",
+		"--intflag1", "10",
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -74,13 +94,34 @@ func TestHelp(t *testing.T) {
 		WithLongDescription("This is a test CLI").
 		AddCommand(
 			NewCommand("subcmd1", action).
-				WithHelpFrom(&Config{}).
-				WithSubcommand(
+				WithChildCommand(
 					NewCommand("subcmd11", action).
-						WithHelpFrom(&Config{}),
+						WithArgument(
+							NewStringCmdInput("arg1").
+								WithDefault("default").
+								WithValidators(
+									NewStringLengthValidator(1, 10),
+									NewEnumValidator(
+										"one",
+										"two",
+										"three",
+									),
+								).
+								Required().
+								AsArgument(),
+						).
+						WithFlag(
+							NewIntCmdInput("intflag").
+								WithDefault(10).
+								WithValidators(
+									NewIntRangeValidator(0, 100),
+									NewEnumValidator(1, 2, 3),
+								).
+								AsFlag(),
+						),
 				),
 		).
-		AddCommand(NewCommand("subcmd2", action).WithHelpFrom(&Config{}))
+		AddCommand(NewCommand("subcmd2", action))
 
 	ctx := context.Background()
 	err := cli.Run(ctx, []string{"test", "subcmd1", "--help"})

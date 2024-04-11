@@ -12,7 +12,8 @@ type Command struct {
 	longDescription string
 	shortcut        string
 	action          CommandHandler
-	configInstance  any
+	flags           map[string]CmdFlag
+	arguments       []CmdArg
 	children        []*Command
 	parent          *Command
 	cli             *CLI
@@ -28,26 +29,33 @@ func (c *Command) WithLongDescription(longDescription string) *Command {
 	return c
 }
 
-func (command *Command) WithHelpFrom(configInstance any) *Command {
-	command.configInstance = configInstance
-	return command
-}
-
 func (command *Command) WithCommandShortcut(shortcut string) *Command {
 	command.shortcut = shortcut
 	return command
 }
 
-func (command *Command) WithSubcommand(subcommand *Command) *Command {
-	command.children = append(command.children, subcommand)
-	subcommand.parent = (*Command)(command)
+func (command *Command) WithChildCommand(cmd *Command) *Command {
+	command.children = append(command.children, cmd)
+	cmd.parent = command
+	return command
+}
+
+func (command *Command) WithFlag(flag CmdFlag) *Command {
+	command.flags[flag.Name()] = flag
+	return command
+}
+
+func (command *Command) WithArgument(arg CmdArg) *Command {
+	command.arguments = append(command.arguments, arg)
 	return command
 }
 
 func NewCommand(name string, action CommandHandler) *Command {
 	command := &Command{
-		name:   name,
-		action: action,
+		name:      name,
+		action:    action,
+		flags:     make(map[string]CmdFlag),
+		arguments: []CmdArg{},
 	}
 	return command
 }

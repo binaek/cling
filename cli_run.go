@@ -36,7 +36,31 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 		return command.printHelp()
 	}
 
+	// verify that there are no required arguments after an optional one
+	for idx, arg := range command.arguments {
+		isThisRequired := arg.isRequired()
+		isThereAnymore := idx < (len(command.arguments) - 1)
+		if !isThereAnymore {
+			break
+		}
+		isNextRequired := command.arguments[idx+1].isRequired()
+
+		if !isThisRequired && isThereAnymore && isNextRequired {
+			return fmt.Errorf("required argument %s after optional argument %s", arg.Name(), command.arguments[idx+1].Name())
+		}
+	}
+
+	// verify that all flags are either required or have a default value
+	for _, flag := range command.flags {
+		if !flag.isRequired() && !flag.hasDefault() {
+			return fmt.Errorf("flag %s has no default value but is not required", flag.Name())
+		}
+	}
+
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
+
+	ctx = WithCommand(ctx, command)
+
 	return command.action(ctx, newArgs)
 }
 
