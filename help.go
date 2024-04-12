@@ -29,24 +29,17 @@ func (c *Command) printHelp() error {
 		usageString = fmt.Sprintf("%s <command>", usageString)
 	}
 
-	if c.configInstance == nil {
-		return nil
-	}
-	flags, args, err := extractConfigDefinitions(c.configInstance)
-	if err != nil {
-		return err
-	}
-	if len(args) > 0 {
-		for _, arg := range args {
-			if arg.optional {
-				usageString = fmt.Sprintf("%s [%s]", usageString, arg.name)
+	if len(c.arguments) > 0 {
+		for _, arg := range c.arguments {
+			if !arg.isRequired() {
+				usageString = fmt.Sprintf("%s [%s]", usageString, arg.Name())
 				continue
 			}
-			usageString = fmt.Sprintf("%s <%s>", usageString, arg.name)
+			usageString = fmt.Sprintf("%s <%s>", usageString, arg.Name())
 		}
 	}
 
-	if len(flags) > 0 {
+	if len(c.flags) > 0 {
 		usageString = fmt.Sprintf("%s [flags]", usageString)
 	}
 	fmt.Printf("  %s\n", usageString)
@@ -65,18 +58,17 @@ func (c *Command) printHelp() error {
 	}
 
 	// Print flags
-	if len(flags) > 0 {
+	if len(c.flags) > 0 {
 		buff := bytes.NewBuffer(nil)
 		buff.WriteString("Flags:\n")
 		flagsTable := tablewriter.NewWriter(buff)
 		flagsTable.SetBorder(false)
 		flagsTable.SetColumnSeparator("")
-		for _, flag := range flags {
+		for _, flag := range c.flags {
 			flagsTable.Append(
 				[]string{
-					fmt.Sprintf("--%s", flag.name),
-					flag.getHelpType(),
-					flag.description,
+					fmt.Sprintf("--%s", flag.Name()),
+					flag.Description(),
 				},
 			)
 		}

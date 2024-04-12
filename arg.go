@@ -7,7 +7,7 @@ import (
 	"github.com/gertd/go-pluralize"
 )
 
-type Arg struct {
+type RuntimeArg struct {
 	name        string
 	description string
 	position    int
@@ -16,7 +16,7 @@ type Arg struct {
 	optional    bool
 }
 
-type Flag struct {
+type RuntimeFlag struct {
 	name        string
 	description string
 	shorthand   rune
@@ -25,7 +25,7 @@ type Flag struct {
 	optional    bool
 }
 
-func (f *Flag) getHelpType() string {
+func (f *RuntimeFlag) getHelpType() string {
 	switch f.flagType.Kind() {
 	case reflect.Slice:
 		var elem string
