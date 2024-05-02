@@ -2,21 +2,65 @@ package cling
 
 import (
 	"context"
+	"slices"
 )
 
+type CommandHook func(ctx context.Context, args []string) error
 type CommandHandler func(ctx context.Context, args []string) error
+
+func NoOpHook(ctx context.Context, args []string) error {
+	return nil
+}
 
 type Command struct {
 	name            string
 	description     string
 	longDescription string
-	shortcut        string
 	action          CommandHandler
 	flags           map[string]CmdFlag
 	arguments       []CmdArg
 	children        []*Command
 	parent          *Command
-	cli             *CLI
+
+	// hooks
+	preRun            CommandHook
+	postRun           CommandHook
+	persistentPreRun  CommandHook
+	persistentPostRun CommandHook
+}
+
+func NewCommand(name string, action CommandHandler) *Command {
+	command := &Command{
+		name:              name,
+		action:            action,
+		flags:             make(map[string]CmdFlag),
+		arguments:         []CmdArg{},
+		preRun:            NoOpHook,
+		postRun:           NoOpHook,
+		persistentPreRun:  NoOpHook,
+		persistentPostRun: NoOpHook,
+	}
+	return command
+}
+
+func (c *Command) WithPreRun(hook CommandHook) *Command {
+	c.preRun = hook
+	return c
+}
+
+func (c *Command) WithPostRun(hook CommandHook) *Command {
+	c.postRun = hook
+	return c
+}
+
+func (c *Command) WithPersistentPreRun(hook CommandHook) *Command {
+	c.persistentPreRun = hook
+	return c
+}
+
+func (c *Command) WithPersistentPostRun(hook CommandHook) *Command {
+	c.persistentPostRun = hook
+	return c
 }
 
 func (c *Command) WithDescription(description string) *Command {
@@ -27,11 +71,6 @@ func (c *Command) WithDescription(description string) *Command {
 func (c *Command) WithLongDescription(longDescription string) *Command {
 	c.longDescription = longDescription
 	return c
-}
-
-func (command *Command) WithCommandShortcut(shortcut string) *Command {
-	command.shortcut = shortcut
-	return command
 }
 
 func (command *Command) WithChildCommand(cmd *Command) *Command {
@@ -50,14 +89,52 @@ func (command *Command) WithArgument(arg CmdArg) *Command {
 	return command
 }
 
-func NewCommand(name string, action CommandHandler) *Command {
-	command := &Command{
-		name:      name,
-		action:    action,
-		flags:     make(map[string]CmdFlag),
-		arguments: []CmdArg{},
+func (command *Command) execute(ctx context.Context, args []string) error {
+	if err := command.executePrerun(ctx, args); err != nil {
+		return err
 	}
-	return command
+	if err := command.action(ctx, args); err != nil {
+		return err
+	}
+	if err := command.executePostRun(ctx, args); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (command *Command) executePrerun(ctx context.Context, args []string) error {
+	path := command.pathToRoot()
+	slices.Reverse(path)
+	for _, cmd := range path {
+		if cmd.persistentPreRun != nil {
+			if err := cmd.persistentPreRun(ctx, args); err != nil {
+				return err
+			}
+		}
+	}
+	if command.preRun != nil {
+		if err := command.preRun(ctx, args); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (command *Command) executePostRun(ctx context.Context, args []string) error {
+	if command.postRun != nil {
+		if err := command.postRun(ctx, args); err != nil {
+			return err
+		}
+	}
+	path := command.pathToRoot()
+	for _, cmd := range path {
+		if cmd.persistentPostRun != nil {
+			if err := cmd.persistentPostRun(ctx, args); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Command) pathToRoot() []*Command {

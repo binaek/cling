@@ -4,15 +4,24 @@ type IntCmdInput struct {
 	name         string
 	defaultValue *int
 	required     bool
-
-	description     string
-	longDescription string
+	description  string
+	lDescription string
+	envs         []string
 }
 
 func NewIntCmdInput(name string) CmdInputWithDefaultAndValidator[int] {
 	return &IntCmdInput{
 		name: name,
 	}
+}
+
+func (f *IntCmdInput) FromEnv(sources []string) CmdInput {
+	f.envs = sources
+	return f
+}
+
+func (f *IntCmdInput) envSources() []string {
+	return f.envs
 }
 
 func (f *IntCmdInput) Description() string {
@@ -24,28 +33,13 @@ func (f *IntCmdInput) WithDescription(value string) CmdInput {
 	return f
 }
 
-func (f *IntCmdInput) LongDescription() string {
-	return f.longDescription
+func (f *IntCmdInput) longDescription() string {
+	return f.lDescription
 }
 
 func (f *IntCmdInput) WithLongDescription(value string) CmdArg {
-	f.longDescription = value
+	f.lDescription = value
 	return f
-}
-
-func (f *IntCmdInput) isRequired() bool {
-	return f.required
-}
-
-func (f *IntCmdInput) hasDefault() bool {
-	return f.defaultValue != nil
-}
-
-func (f *IntCmdInput) getDefault() any {
-	if f.defaultValue != nil {
-		return *f.defaultValue
-	}
-	return 0
 }
 
 func (f *IntCmdInput) Required() CmdInput {
@@ -75,4 +69,19 @@ func (f *IntCmdInput) AsFlag() CmdFlag {
 
 func (f *IntCmdInput) AsArgument() CmdArg {
 	return f
+}
+
+func (f *IntCmdInput) isRequired() bool {
+	return f.required
+}
+
+func (f *IntCmdInput) hasDefault() bool {
+	return f.defaultValue != nil
+}
+
+func (f *IntCmdInput) getDefault() any {
+	if f.defaultValue != nil {
+		return *f.defaultValue
+	}
+	return 0
 }

@@ -1,11 +1,12 @@
 package cling
 
 type StringCmdInput struct {
-	name            string
-	description     string
-	longDescription string
-	defaultValue    *string
-	required        bool
+	name         string
+	description  string
+	lDescription string
+	defaultValue *string
+	required     bool
+	envs         []string
 }
 
 func NewStringCmdInput(name string) CmdInputWithDefaultAndValidator[string] {
@@ -14,13 +15,18 @@ func NewStringCmdInput(name string) CmdInputWithDefaultAndValidator[string] {
 	}
 }
 
-func (f *StringCmdInput) Required() CmdInput {
-	f.required = true
+func (f *StringCmdInput) FromEnv(sources []string) CmdInput {
+	f.envs = sources
 	return f
 }
 
-func (f *StringCmdInput) isRequired() bool {
-	return f.required
+func (f *StringCmdInput) envSources() []string {
+	return f.envs
+}
+
+func (f *StringCmdInput) Required() CmdInput {
+	f.required = true
+	return f
 }
 
 func (f *StringCmdInput) WithDefault(value string) CmdInputWithDefaultAndValidator[string] {
@@ -29,17 +35,6 @@ func (f *StringCmdInput) WithDefault(value string) CmdInputWithDefaultAndValidat
 	}
 	*f.defaultValue = value
 	return f
-}
-
-func (f *StringCmdInput) getDefault() any {
-	if f.defaultValue != nil {
-		return *f.defaultValue
-	}
-	return ""
-}
-
-func (f *StringCmdInput) hasDefault() bool {
-	return f.defaultValue != nil
 }
 
 func (f *StringCmdInput) Description() string {
@@ -68,10 +63,25 @@ func (f *StringCmdInput) AsArgument() CmdArg {
 }
 
 func (f *StringCmdInput) WithLongDescription(longDescription string) CmdArg {
-	f.longDescription = longDescription
+	f.lDescription = longDescription
 	return f
 }
 
-func (f *StringCmdInput) LongDescription() string {
-	return f.longDescription
+func (f *StringCmdInput) longDescription() string {
+	return f.lDescription
+}
+
+func (f *StringCmdInput) hasDefault() bool {
+	return f.defaultValue != nil
+}
+
+func (f *StringCmdInput) getDefault() any {
+	if f.defaultValue != nil {
+		return *f.defaultValue
+	}
+	return ""
+}
+
+func (f *StringCmdInput) isRequired() bool {
+	return f.required
 }

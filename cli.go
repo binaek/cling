@@ -8,11 +8,8 @@ type CLI struct {
 	commands        []*Command
 }
 
-// Assuming AddCommand is a method of a CLI struct, make it a generic method
-func (cli *CLI) AddCommand(command *Command) *CLI {
-	// Add the command to your CLI structure
-	// This might involve casting to *Command[any] if necessary, but be careful with type safety
-	command.cli = cli
+// Assuming WithCommand is a method of a CLI struct, make it a generic method
+func (cli *CLI) WithCommand(command *Command) *CLI {
 	cli.commands = append(cli.commands, command)
 	return cli
 }

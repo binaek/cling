@@ -2,6 +2,7 @@ package cling
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,16 +10,12 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func (c *Command) printHelp() error {
+func (c *Command) printHelp(ctx context.Context, cli *CLI) error {
 	parents := c.pathToRoot()
 	slices.Reverse(parents)
-	var cli *CLI
 	parentsStr := make([]string, len(parents))
 	for i, parent := range parents {
 		parentsStr[i] = parent.name
-		if parent.cli != nil {
-			cli = parent.cli
-		}
 	}
 
 	fmt.Println(c.longDescription)

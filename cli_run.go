@@ -33,7 +33,7 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	positionals = positionals[len(pathToRoot):]
 
 	if _, ok := flags["help"]; ok {
-		return command.printHelp()
+		return command.printHelp(ctx, c)
 	}
 
 	// verify that there are no required arguments after an optional one
@@ -60,8 +60,11 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
 
 	ctx = WithCommand(ctx, command)
-
-	return command.action(ctx, newArgs)
+	err := command.execute(ctx, newArgs)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *CLI) printUsage() {}

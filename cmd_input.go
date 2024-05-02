@@ -4,6 +4,8 @@ type CmdInput interface {
 	Name() string
 	Description() string
 	Required() CmdInput
+	WithDescription(description string) CmdInput
+
 	AsFlag() CmdFlag
 	AsArgument() CmdArg
 
@@ -20,10 +22,12 @@ type CmdInputWithDefaultAndValidator[S any] interface {
 
 type CmdFlag interface {
 	CmdInput
+	FromEnv([]string) CmdInput
+	envSources() []string
 }
 
 type CmdArg interface {
 	CmdInput
 	WithLongDescription(string) CmdArg
-	LongDescription() string
+	longDescription() string
 }

@@ -3,6 +3,7 @@ package cling
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -96,8 +97,6 @@ func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets
 		}
 	}
 
-	// now set the default value if we didn't get one
-
 	return nil
 }
 
@@ -108,7 +107,16 @@ func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value
 
 		if !ok && flag.hasDefault() {
 			// put in the default
-			values = append(values, fmt.Sprint(flag.getDefault()))
+			values = []string{fmt.Sprint(flag.getDefault())}
+		}
+
+		if len(values) == 0 {
+			// try to populate from env
+			for _, envKey := range flag.envSources() {
+				if val, ok := os.LookupEnv(envKey); ok {
+					values = []string{val}
+				}
+			}
 		}
 
 		if (flag.isRequired()) && (!ok || len(values) == 0) {

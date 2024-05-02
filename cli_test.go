@@ -40,7 +40,7 @@ func action(ctx context.Context, args []string) error {
 
 func TestRun(t *testing.T) {
 	cli := NewCLI("test", "0.0.1").
-		AddCommand(
+		WithCommand(
 			NewCommand("subcmd1", action).
 				WithArgument(
 					NewIntCmdInput("positional1").AsArgument(),
@@ -57,7 +57,7 @@ func TestRun(t *testing.T) {
 						AsFlag(),
 				).
 				WithFlag(
-					NewIntCmdInput("intflag1").Required(),
+					NewIntCmdInput("intflag1").Required().AsFlag(),
 				),
 		)
 
@@ -78,8 +78,8 @@ func TestRun(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	cli := NewCLI("test", "0.0.1").
-		AddCommand(NewCommand("subcmd1", action)).
-		AddCommand(NewCommand("subcmd2", action))
+		WithCommand(NewCommand("subcmd1", action)).
+		WithCommand(NewCommand("subcmd2", action))
 
 	ctx := context.Background()
 	err := cli.Run(ctx, []string{"test", "subcmd1", "--version"})
@@ -92,7 +92,7 @@ func TestHelp(t *testing.T) {
 	cli := NewCLI("test", "0.0.1").
 		WithDescription("Test CLI").
 		WithLongDescription("This is a test CLI").
-		AddCommand(
+		WithCommand(
 			NewCommand("subcmd1", action).
 				WithChildCommand(
 					NewCommand("subcmd11", action).
@@ -121,7 +121,7 @@ func TestHelp(t *testing.T) {
 						),
 				),
 		).
-		AddCommand(NewCommand("subcmd2", action))
+		WithCommand(NewCommand("subcmd2", action))
 
 	ctx := context.Background()
 	err := cli.Run(ctx, []string{"test", "subcmd1", "--help"})
