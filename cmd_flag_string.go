@@ -7,6 +7,8 @@ type StringCmdInput struct {
 	defaultValue *string
 	required     bool
 	envs         []string
+
+	validators []Validator[string]
 }
 
 func NewStringCmdInput(name string) CmdInputWithDefaultAndValidator[string] {
@@ -15,7 +17,7 @@ func NewStringCmdInput(name string) CmdInputWithDefaultAndValidator[string] {
 	}
 }
 
-func (f *StringCmdInput) FromEnv(sources []string) CmdInput {
+func (f *StringCmdInput) FromEnv(sources []string) CmdFlag {
 	f.envs = sources
 	return f
 }
@@ -51,7 +53,12 @@ func (f *StringCmdInput) Name() string {
 }
 
 func (f *StringCmdInput) WithValidators(validators ...Validator[string]) CmdInputWithDefaultAndValidator[string] {
+	f.validators = validators
 	return f
+}
+
+func (f *StringCmdInput) getValidators() []Validator[string] {
+	return f.validators
 }
 
 func (f *StringCmdInput) AsFlag() CmdFlag {

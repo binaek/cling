@@ -54,7 +54,8 @@ func TestRun(t *testing.T) {
 				WithFlag(
 					NewStringCmdInput("stringflag1").
 						WithDefault("default").
-						AsFlag(),
+						AsFlag().
+						FromEnv([]string{"STRINGFLAG1"}),
 				).
 				WithFlag(
 					NewIntCmdInput("intflag1").Required().AsFlag(),

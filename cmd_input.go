@@ -18,11 +18,13 @@ type CmdInputWithDefaultAndValidator[S any] interface {
 	CmdInput
 	WithDefault(value S) CmdInputWithDefaultAndValidator[S]
 	WithValidators(validators ...Validator[S]) CmdInputWithDefaultAndValidator[S]
+
+	getValidators() []Validator[S]
 }
 
 type CmdFlag interface {
 	CmdInput
-	FromEnv([]string) CmdInput
+	FromEnv([]string) CmdFlag
 	envSources() []string
 }
 
