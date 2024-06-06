@@ -11,6 +11,7 @@ import (
 
 var ErrInvalidCLIngConfig = errors.New("invalid CLIng configuration")
 
+// Run executes the CLI with the given command line arguments.
 func (c *CLI) Run(ctx context.Context, args []string) error {
 	if len(c.name) == 0 {
 		// get the executable name

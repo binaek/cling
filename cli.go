@@ -16,22 +16,25 @@ type CLI struct {
 	stderr io.Writer
 }
 
-// Assuming WithCommand is a method of a CLI struct, make it a generic method
+// WithCommand adds a command to the CLI
 func (cli *CLI) WithCommand(command *Command) *CLI {
 	cli.commands = append(cli.commands, command)
 	return cli
 }
 
+// WithDescription sets the description of the CLI
 func (cli *CLI) WithDescription(description string) *CLI {
 	cli.description = description
 	return cli
 }
 
+// WithLongDescription sets the long description of the CLI
 func (cli *CLI) WithLongDescription(longDescription string) *CLI {
 	cli.longDescription = longDescription
 	return cli
 }
 
+// NewCLI creates a new CLI
 func NewCLI(name string, version string) *CLI {
 	cli := &CLI{
 		name:    name,
