@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 func setFieldFromString(field reflect.Value, valueStr string, validator Validator[any]) error {
@@ -22,7 +23,17 @@ func setFieldFromString(field reflect.Value, valueStr string, validator Validato
 	case reflect.Float32, reflect.Float64:
 		value, err = parseFloat(valueStr, field.Type().Bits())
 	case reflect.Slice:
-		return setSlice(field, valueStr, validator)
+		if strings.Contains(valueStr, ",") {
+			values := strings.Split(valueStr, ",")
+			for _, value := range values {
+				if err := setSlice(field, value, validator); err != nil {
+					return err
+				}
+			}
+			return nil
+		} else {
+			return setSlice(field, valueStr, validator)
+		}
 	default:
 		return fmt.Errorf("unsupported field type: %s", field.Type().Kind())
 	}

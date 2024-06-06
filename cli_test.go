@@ -8,11 +8,15 @@ import (
 )
 
 type Config struct {
-	Positional1 string `cling-name:"positional1"`
-	Positional2 string `cling-name:"positional2"`
-	Positional3 string `cling-name:"positional3"`
-	StringFlag1 string `cling-name:"stringflag1"`
-	IntFlag1    int    `cling-name:"intflag1"`
+	Positional1 string   `cling-name:"positional1"`
+	Positional2 string   `cling-name:"positional2"`
+	Positional3 string   `cling-name:"positional3"`
+	StringFlag1 string   `cling-name:"stringflag1"`
+	IntFlag1    int      `cling-name:"intflag1"`
+	SliceFlag1  []int    `cling-name:"sliceflag1"`
+	SliceFlag2  []string `cling-name:"sliceflag2"`
+	SliceFlag3  []string `cling-name:"sliceflag3"`
+	SliceFlag4  []int    `cling-name:"sliceflag4"`
 }
 
 func (c *Config) String() string {
@@ -54,9 +58,29 @@ func TestRun(t *testing.T) {
 				WithFlag(
 					NewStringCmdInput("stringflag1").
 						WithDefault("default").
-						WithValidator(NewEnumValidator("one", "two", "three")).
+						WithValidator(NewEnumValidator("default", "one", "two", "three")).
 						AsFlag().
 						FromEnv([]string{"STRINGFLAG1"}),
+				).
+				WithFlag(
+					NewCmdSliceInput[int]("sliceflag1").
+						WithDefault([]int{1, 2, 3}).
+						AsFlag(),
+				).
+				WithFlag(
+					NewCmdSliceInput[string]("sliceflag2").
+						WithDefault([]string{"one", "two", "three"}).
+						AsFlag(),
+				).
+				WithFlag(
+					NewCmdSliceInput[string]("sliceflag3").
+						WithDefault([]string{"one", "two", "three"}).
+						AsFlag(),
+				).
+				WithFlag(
+					NewCmdSliceInput[int]("sliceflag4").
+						WithDefault([]int{1, 2, 3}).
+						AsFlag(),
 				).
 				WithFlag(
 					NewIntCmdInput("intflag1").Required().AsFlag(),
@@ -72,6 +96,14 @@ func TestRun(t *testing.T) {
 		"pos3",
 		// "--stringflag1", "stringflag1",
 		"--intflag1", "10",
+		"--sliceflag1", "4",
+		"--sliceflag1", "5",
+		"--sliceflag1", "6",
+		"--sliceflag2", "four",
+		"--sliceflag2", "five",
+		"--sliceflag2", "six",
+		"--sliceflag3", "seven,eight,nine",
+		"--sliceflag4", "7,8,9",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

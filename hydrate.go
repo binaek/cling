@@ -127,8 +127,15 @@ func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value
 			if err := validator.Validate(def); err != nil {
 				return errors.Wrapf(err, "cannot set invalid default '%v' for '%s'", def, name)
 			}
-			// put in the default
-			values = []string{fmt.Sprint(flag.getDefault())}
+			// if def is a slice
+			if reflect.TypeOf(def).Kind() == reflect.Slice {
+				values = []string{}
+				for i := 0; i < reflect.ValueOf(def).Len(); i++ {
+					values = append(values, fmt.Sprint(reflect.ValueOf(def).Index(i).Interface()))
+				}
+			} else {
+				values = []string{fmt.Sprint(def)}
+			}
 		}
 
 		if len(values) == 0 {
