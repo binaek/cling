@@ -15,12 +15,16 @@ type configTarget struct {
 	structIdx int
 }
 
-type ConfigTargets map[string]configTarget
+type configTargets map[string]configTarget
 
+// Hydrate populates the destination struct based on command-line arguments and context.
 func Hydrate[T any](ctx context.Context, argArguments []string, destination *T) error {
+	if destination == nil {
+		return errors.New("destination cannot be nil")
+	}
 	cmd, ok := CommandFromContext(ctx)
 	if !ok {
-		return errors.New("no command found in context")
+		return errors.New("invalid state - context is not derived from CLIng supplied context")
 	}
 
 	// parse the arguments
@@ -62,7 +66,7 @@ func Hydrate[T any](ctx context.Context, argArguments []string, destination *T) 
 	return nil
 }
 
-func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets ConfigTargets) error {
+func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets configTargets) error {
 	// verify we have at least the required number of arguments
 	requiredArguments := 0
 	for _, argument := range cmd.arguments {
@@ -76,13 +80,18 @@ func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets
 	}
 
 	for idx, argument := range cmd.arguments {
+		validator := NoOpValidator()
+		if flagWithValidator, ok := argument.(CmdInputWithDefaultAndValidator[any]); ok {
+			validator = flagWithValidator.getValidator().(Validator[any])
+		}
+
 		target, ok := targets[argument.Name()]
 		field := destination.Field(target.structIdx)
 		if idx < len(args) {
 			if !ok {
 				return errors.Errorf("could not find target for '%s'", argument.Name())
 			}
-			if err := setFieldFromString(field, args[idx]); err != nil {
+			if err := setFieldFromString(field, args[idx], validator); err != nil {
 				return errors.Wrapf(err, "failed to set argument '%s'", argument.Name())
 			}
 		} else {
@@ -90,7 +99,7 @@ func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets
 			val := fmt.Sprint(argument.getDefault())
 			if ok {
 				// put in the default
-				if err := setFieldFromString(field, val); err != nil {
+				if err := setFieldFromString(field, val, validator); err != nil {
 					return errors.Wrapf(err, "failed to set argument '%s'", argument.Name())
 				}
 			}
@@ -100,12 +109,24 @@ func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets
 	return nil
 }
 
-func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value, targets ConfigTargets) error {
+func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value, targets configTargets) error {
 	// get defined flags
-	for name, flag := range cmd.flags {
+	for _, flag := range cmd.flags {
+		name := flag.Name()
 		values, ok := v[name]
 
+		validator := NoOpValidator()
+		if flagWithValidator, ok := flag.(ValidatorProvider); ok && flagWithValidator.getValidator() != nil {
+			validator = flagWithValidator.getValidator()
+		}
+
 		if !ok && flag.hasDefault() {
+			// get the default
+			def := flag.getDefault()
+			// run it through the validator
+			if err := validator.Validate(def); err != nil {
+				return errors.Wrapf(err, "cannot set invalid default '%v' for '%s'", def, name)
+			}
 			// put in the default
 			values = []string{fmt.Sprint(flag.getDefault())}
 		}
@@ -137,13 +158,13 @@ func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value
 		}
 		if field.Kind() == reflect.Slice {
 			for _, valueStr := range values {
-				if err := setFieldFromString(field, valueStr); err != nil {
+				if err := setFieldFromString(field, valueStr, validator); err != nil {
 					return errors.Wrapf(err, "failed to set flag '%s'", name)
 				}
 			}
 		} else {
 			valueStr := values[0]
-			if err := setFieldFromString(field, valueStr); err != nil {
+			if err := setFieldFromString(field, valueStr, validator); err != nil {
 				return errors.Wrapf(err, "failed to set flag '%s'", name)
 			}
 		}

@@ -1,55 +1,54 @@
 package cling
 
-type IntCmdInput struct {
+type intCmdInput struct {
 	name         string
 	defaultValue *int
 	required     bool
 	description  string
 	lDescription string
 	envs         []string
-
-	validators []Validator[int]
+	validator    validatorAny
 }
 
 func NewIntCmdInput(name string) CmdInputWithDefaultAndValidator[int] {
-	return &IntCmdInput{
+	return &intCmdInput{
 		name: name,
 	}
 }
 
-func (f *IntCmdInput) FromEnv(sources []string) CmdFlag {
+func (f *intCmdInput) FromEnv(sources []string) CmdFlag {
 	f.envs = sources
 	return f
 }
 
-func (f *IntCmdInput) envSources() []string {
+func (f *intCmdInput) envSources() []string {
 	return f.envs
 }
 
-func (f *IntCmdInput) Description() string {
+func (f *intCmdInput) Description() string {
 	return f.description
 }
 
-func (f *IntCmdInput) WithDescription(value string) CmdInput {
+func (f *intCmdInput) WithDescription(value string) CmdInput {
 	f.description = value
 	return f
 }
 
-func (f *IntCmdInput) longDescription() string {
+func (f *intCmdInput) longDescription() string {
 	return f.lDescription
 }
 
-func (f *IntCmdInput) WithLongDescription(value string) CmdArg {
+func (f *intCmdInput) WithLongDescription(value string) CmdArg {
 	f.lDescription = value
 	return f
 }
 
-func (f *IntCmdInput) Required() CmdInput {
+func (f *intCmdInput) Required() CmdInput {
 	f.required = true
 	return f
 }
 
-func (f *IntCmdInput) WithDefault(value int) CmdInputWithDefaultAndValidator[int] {
+func (f *intCmdInput) WithDefault(value int) CmdInputWithDefaultAndValidator[int] {
 	if f.defaultValue == nil {
 		f.defaultValue = new(int)
 	}
@@ -57,36 +56,36 @@ func (f *IntCmdInput) WithDefault(value int) CmdInputWithDefaultAndValidator[int
 	return f
 }
 
-func (f *IntCmdInput) Name() string {
+func (f *intCmdInput) Name() string {
 	return f.name
 }
 
-func (f *IntCmdInput) WithValidators(validators ...Validator[int]) CmdInputWithDefaultAndValidator[int] {
-	f.validators = validators
+func (f *intCmdInput) WithValidator(validator Validator[int]) CmdInputWithDefaultAndValidator[int] {
+	f.validator = &genericValidatorWrapper[int]{validator: validator}
 	return f
 }
 
-func (f *IntCmdInput) getValidators() []Validator[int] {
-	return f.validators
+func (f *intCmdInput) getValidator() validatorAny {
+	return f.validator
 }
 
-func (f *IntCmdInput) AsFlag() CmdFlag {
+func (f *intCmdInput) AsFlag() CmdFlag {
 	return f
 }
 
-func (f *IntCmdInput) AsArgument() CmdArg {
+func (f *intCmdInput) AsArgument() CmdArg {
 	return f
 }
 
-func (f *IntCmdInput) isRequired() bool {
+func (f *intCmdInput) isRequired() bool {
 	return f.required
 }
 
-func (f *IntCmdInput) hasDefault() bool {
+func (f *intCmdInput) hasDefault() bool {
 	return f.defaultValue != nil
 }
 
-func (f *IntCmdInput) getDefault() any {
+func (f *intCmdInput) getDefault() any {
 	if f.defaultValue != nil {
 		return *f.defaultValue
 	}

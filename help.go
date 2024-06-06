@@ -2,7 +2,6 @@ package cling
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -10,18 +9,35 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-func (c *Command) printHelp(ctx context.Context, cli *CLI) error {
-	parents := c.pathToRoot()
-	slices.Reverse(parents)
-	parentsStr := make([]string, len(parents))
-	for i, parent := range parents {
-		parentsStr[i] = parent.name
+func (c *CLI) printUsage() {
+	fmt.Fprintf(c.stdout, "Usage: %s [command] [flags] [arguments]\n\n", c.name)
+	fmt.Fprintln(c.stdout, "Available Commands:")
+	for _, cmd := range c.commands {
+		fmt.Fprintf(c.stdout, "  %s\t%s\n", cmd.name, cmd.description)
+		for _, child := range cmd.children { // Print subcommands
+			fmt.Fprintf(c.stdout, "    %s\t%s\n", child.name, child.description)
+		}
 	}
 
-	fmt.Println(c.longDescription)
+	fmt.Fprintln(c.stdout, "\nFlags:")
+	fmt.Fprintln(c.stdout, "  --help\tShow help information")
+	fmt.Fprintln(c.stdout, "  --version\tShow version information")
 
-	fmt.Println("Usage: ")
-	usageString := fmt.Sprintf("%s %s", cli.name, strings.Join(parentsStr, " "))
+	fmt.Fprintf(c.stdout, "\nUse \"%s [command] --help\" for more information about a command.\n", c.name)
+}
+
+func (c *Command) printHelp(cli *CLI) error {
+	path2Root := c.pathToRoot()
+	slices.Reverse(path2Root)
+	pathStr := make([]string, len(path2Root))
+	for i, parent := range path2Root {
+		pathStr[i] = parent.name
+	}
+
+	fmt.Fprintln(cli.stdout, c.longDescription)
+
+	fmt.Fprintln(cli.stdout, "Usage: ")
+	usageString := fmt.Sprintf("%s %s", cli.name, strings.Join(pathStr, " "))
 	if len(c.children) > 0 {
 		usageString = fmt.Sprintf("%s <command>", usageString)
 	}
@@ -39,7 +55,7 @@ func (c *Command) printHelp(ctx context.Context, cli *CLI) error {
 	if len(c.flags) > 0 {
 		usageString = fmt.Sprintf("%s [flags]", usageString)
 	}
-	fmt.Printf("  %s\n", usageString)
+	fmt.Fprintf(cli.stdout, "  %s\n", usageString)
 
 	// Print available commands if any
 	if len(c.children) > 0 {
@@ -50,8 +66,8 @@ func (c *Command) printHelp(ctx context.Context, cli *CLI) error {
 				fmt.Sprintf("  %s\t%s\n", child.name, child.description),
 			)
 		}
-		fmt.Println()
-		fmt.Print(buff.String())
+		fmt.Fprintln(cli.stdout)
+		fmt.Fprintln(cli.stdout, buff.String())
 	}
 
 	// Print flags
@@ -71,13 +87,13 @@ func (c *Command) printHelp(ctx context.Context, cli *CLI) error {
 		}
 		flagsTable.Render()
 
-		fmt.Println()
-		fmt.Print(buff.String())
-		fmt.Println()
+		fmt.Fprintln(cli.stdout)
+		fmt.Fprintln(cli.stdout, buff.String())
+		fmt.Fprintln(cli.stdout)
 	}
 
 	if len(c.children) > 0 {
-		fmt.Printf("Use \"%s %s [command] --help\" for more information about a command.\n", cli.name, strings.Join(parentsStr, " "))
+		fmt.Fprintf(cli.stdout, "Use \"%s %s [command] --help\" for more information about a command.\n", cli.name, strings.Join(pathStr, " "))
 	}
 
 	return nil

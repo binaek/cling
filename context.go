@@ -8,7 +8,7 @@ const (
 	ContextKeyCommand ClingContextKey = "command"
 )
 
-func WithCommand(ctx context.Context, command *Command) context.Context {
+func ContextWithCommand(ctx context.Context, command *Command) context.Context {
 	return context.WithValue(ctx, ContextKeyCommand, command)
 }
 

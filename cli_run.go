@@ -2,11 +2,30 @@ package cling
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/pkg/errors"
 )
 
+var ErrInvalidCLIngConfig = errors.New("invalid CLIng configuration")
+
 func (c *CLI) Run(ctx context.Context, args []string) error {
+	if len(c.name) == 0 {
+		// get the executable name
+		exec, err := os.Executable()
+		if err != nil {
+			return errors.Wrap(ErrInvalidCLIngConfig, "could not resolve executable name")
+		}
+		c.name = filepath.Base(exec)
+	}
+
+	// validate the CLI
+	if err := c.validate(); err != nil {
+		return err
+	}
+
 	// parse the arguments
 	flags, positionals := parseArguments(args)
 	if len(positionals) < 2 {
@@ -33,7 +52,7 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	positionals = positionals[len(pathToRoot):]
 
 	if _, ok := flags["help"]; ok {
-		return command.printHelp(ctx, c)
+		return command.printHelp(c)
 	}
 
 	// verify that there are no required arguments after an optional one
@@ -59,16 +78,13 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
 
-	ctx = WithCommand(ctx, command)
+	ctx = ContextWithCommand(ctx, command)
 	err := command.execute(ctx, newArgs)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
-func (c *CLI) printUsage() {}
-
 func reconstructCmdLineFromFlags(f map[string][]string) []string {
 	flags := []string{}
 	for k, v := range f {
@@ -98,4 +114,21 @@ func (c *CLI) findCmd(currentCMD *Command, names []string, index int) *Command {
 		}
 	}
 	return currentCMD
+}
+
+func (c *CLI) validate() error {
+	if c.stdout == nil {
+		return errors.Wrap(ErrInvalidCLIngConfig, "stdout channel not set")
+	}
+
+	if c.stderr == nil {
+		return errors.Wrap(ErrInvalidCLIngConfig, "stderr channel not set")
+	}
+
+	for _, cmd := range c.commands {
+		if err := cmd.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

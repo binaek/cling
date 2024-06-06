@@ -14,12 +14,15 @@ type CmdInput interface {
 	getDefault() any
 }
 
+type ValidatorProvider interface {
+	getValidator() validatorAny
+}
+
 type CmdInputWithDefaultAndValidator[S any] interface {
 	CmdInput
+	ValidatorProvider
 	WithDefault(value S) CmdInputWithDefaultAndValidator[S]
-	WithValidators(validators ...Validator[S]) CmdInputWithDefaultAndValidator[S]
-
-	getValidators() []Validator[S]
+	WithValidator(validator Validator[S]) CmdInputWithDefaultAndValidator[S]
 }
 
 type CmdFlag interface {

@@ -3,6 +3,8 @@ package cling
 import (
 	"context"
 	"slices"
+
+	"github.com/pkg/errors"
 )
 
 type CommandHook func(ctx context.Context, args []string) error
@@ -17,7 +19,7 @@ type Command struct {
 	description     string
 	longDescription string
 	action          CommandHandler
-	flags           map[string]CmdFlag
+	flags           []CmdFlag
 	arguments       []CmdArg
 	children        []*Command
 	parent          *Command
@@ -33,7 +35,7 @@ func NewCommand(name string, action CommandHandler) *Command {
 	command := &Command{
 		name:              name,
 		action:            action,
-		flags:             make(map[string]CmdFlag),
+		flags:             []CmdFlag{},
 		arguments:         []CmdArg{},
 		preRun:            NoOpHook,
 		postRun:           NoOpHook,
@@ -80,7 +82,7 @@ func (command *Command) WithChildCommand(cmd *Command) *Command {
 }
 
 func (command *Command) WithFlag(flag CmdFlag) *Command {
-	command.flags[flag.Name()] = flag
+	command.flags = append(command.flags, flag)
 	return command
 }
 
@@ -148,4 +150,74 @@ func (c *Command) pathToRoot() []*Command {
 		command = *(command.parent)
 	}
 	return path
+}
+
+var ErrInvalidCommand = errors.New("invalid command")
+
+func (c *Command) validate() error {
+	if c.name == "" {
+		return errors.Wrapf(ErrInvalidCommand, "command name is required")
+	}
+	if c.action == nil {
+		return errors.Wrapf(ErrInvalidCommand, "command action is required in command '%s'", c.name)
+	}
+	if err := c.validateFlagsAndArgs(); err != nil {
+		return err
+	}
+	for _, child := range c.children {
+		if err := child.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Command) validateFlagsAndArgs() error {
+	// also validate that there's no conflict on the names across flags and arguments
+	flagAndArgNames := make([]string, 0, len(c.flags))
+	for _, flag := range c.flags {
+		flagAndArgNames = append(flagAndArgNames, flag.Name())
+	}
+	for _, arg := range c.arguments {
+		flagAndArgNames = append(flagAndArgNames, arg.Name())
+	}
+	slices.Sort(flagAndArgNames)
+	cmpctNames := slices.Compact(flagAndArgNames)
+	if len(flagAndArgNames) != len(cmpctNames) {
+		return errors.Wrapf(ErrInvalidCommand, "duplicate flag and argument names found: %v", flagAndArgNames)
+	}
+
+	if err := c.validateFlags(); err != nil {
+		return err
+	}
+	if err := c.validateArguments(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Command) validateFlags() error {
+	names := make([]string, 0, len(c.flags))
+	for _, flag := range c.flags {
+		names = append(names, flag.Name())
+	}
+	slices.Sort(names)
+	cmpctNames := slices.Compact(names)
+	if len(names) != len(cmpctNames) {
+		return errors.Wrapf(ErrInvalidCommand, "duplicate flag names found: %v", names)
+	}
+	return nil
+}
+
+func (c *Command) validateArguments() error {
+	names := make([]string, 0, len(c.arguments))
+	for _, arg := range c.arguments {
+		names = append(names, arg.Name())
+	}
+	slices.Sort(names)
+	cmpctNames := slices.Compact(names)
+	if len(names) != len(cmpctNames) {
+		return errors.Wrapf(ErrInvalidCommand, "duplicate argument names found: %v", names)
+	}
+	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func setFieldFromString(field reflect.Value, valueStr string, validators ...Validator[any]) error {
+func setFieldFromString(field reflect.Value, valueStr string, validator Validator[any]) error {
 	var value any
 	var err error
 
@@ -22,7 +22,7 @@ func setFieldFromString(field reflect.Value, valueStr string, validators ...Vali
 	case reflect.Float32, reflect.Float64:
 		value, err = parseFloat(valueStr, field.Type().Bits())
 	case reflect.Slice:
-		return setSlice(field, valueStr, validators...)
+		return setSlice(field, valueStr, validator)
 	default:
 		return fmt.Errorf("unsupported field type: %s", field.Type().Kind())
 	}
@@ -31,7 +31,7 @@ func setFieldFromString(field reflect.Value, valueStr string, validators ...Vali
 		return err
 	}
 
-	if err := runValidators(value, validators); err != nil {
+	if err := runValidator(value, validator); err != nil {
 		return err
 	}
 
@@ -63,7 +63,7 @@ func setSlice(field reflect.Value, valueStr string, validators ...Validator[any]
 		return err
 	}
 
-	if err := runValidators(value, validators); err != nil {
+	if err := runValidator(value, validators...); err != nil {
 		return err
 	}
 
@@ -91,7 +91,7 @@ func parseFloat(valueStr string, bits int) (float64, error) {
 	return strconv.ParseFloat(valueStr, bits)
 }
 
-func runValidators(value any, validators []Validator[any]) error {
+func runValidator(value any, validators ...Validator[any]) error {
 	for _, validator := range validators {
 		if err := validator.Validate(value); err != nil {
 			return err

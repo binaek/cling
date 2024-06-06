@@ -1,11 +1,19 @@
 package cling
 
+import (
+	"io"
+	"os"
+)
+
 type CLI struct {
 	name            string
 	description     string
 	longDescription string
 	version         string
 	commands        []*Command
+
+	stdout io.Writer
+	stderr io.Writer
 }
 
 // Assuming WithCommand is a method of a CLI struct, make it a generic method
@@ -28,6 +36,8 @@ func NewCLI(name string, version string) *CLI {
 	cli := &CLI{
 		name:    name,
 		version: version,
+		stdout:  os.Stdout,
+		stderr:  os.Stderr,
 	}
 	return cli
 }

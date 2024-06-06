@@ -54,6 +54,7 @@ func TestRun(t *testing.T) {
 				WithFlag(
 					NewStringCmdInput("stringflag1").
 						WithDefault("default").
+						WithValidator(NewEnumValidator("one", "two", "three")).
 						AsFlag().
 						FromEnv([]string{"STRINGFLAG1"}),
 				).
@@ -100,12 +101,14 @@ func TestHelp(t *testing.T) {
 						WithArgument(
 							NewStringCmdInput("arg1").
 								WithDefault("default").
-								WithValidators(
-									NewStringLengthValidator(1, 10),
-									NewEnumValidator(
-										"one",
-										"two",
-										"three",
+								WithValidator(
+									ComposeValidator(
+										NewStringLengthValidator(1, 10),
+										NewEnumValidator(
+											"one",
+											"two",
+											"three",
+										),
 									),
 								).
 								Required().
@@ -114,9 +117,11 @@ func TestHelp(t *testing.T) {
 						WithFlag(
 							NewIntCmdInput("intflag").
 								WithDefault(10).
-								WithValidators(
-									NewIntRangeValidator(0, 100),
-									NewEnumValidator(1, 2, 3),
+								WithValidator(
+									ComposeValidator(
+										NewIntRangeValidator(0, 100),
+										NewEnumValidator(1, 2, 3),
+									),
 								).
 								AsFlag(),
 						),

@@ -1,37 +1,36 @@
 package cling
 
-type StringCmdInput struct {
+type stringCmdInput struct {
 	name         string
 	description  string
 	lDescription string
 	defaultValue *string
 	required     bool
 	envs         []string
-
-	validators []Validator[string]
+	validator    validatorAny
 }
 
 func NewStringCmdInput(name string) CmdInputWithDefaultAndValidator[string] {
-	return &StringCmdInput{
+	return &stringCmdInput{
 		name: name,
 	}
 }
 
-func (f *StringCmdInput) FromEnv(sources []string) CmdFlag {
+func (f *stringCmdInput) FromEnv(sources []string) CmdFlag {
 	f.envs = sources
 	return f
 }
 
-func (f *StringCmdInput) envSources() []string {
+func (f *stringCmdInput) envSources() []string {
 	return f.envs
 }
 
-func (f *StringCmdInput) Required() CmdInput {
+func (f *stringCmdInput) Required() CmdInput {
 	f.required = true
 	return f
 }
 
-func (f *StringCmdInput) WithDefault(value string) CmdInputWithDefaultAndValidator[string] {
+func (f *stringCmdInput) WithDefault(value string) CmdInputWithDefaultAndValidator[string] {
 	if f.defaultValue == nil {
 		f.defaultValue = new(string)
 	}
@@ -39,56 +38,55 @@ func (f *StringCmdInput) WithDefault(value string) CmdInputWithDefaultAndValidat
 	return f
 }
 
-func (f *StringCmdInput) Description() string {
+func (f *stringCmdInput) Description() string {
 	return f.description
 }
 
-func (f *StringCmdInput) WithDescription(value string) CmdInput {
+func (f *stringCmdInput) WithDescription(value string) CmdInput {
 	f.description = value
 	return f
 }
 
-func (f *StringCmdInput) Name() string {
+func (f *stringCmdInput) Name() string {
 	return f.name
 }
 
-func (f *StringCmdInput) WithValidators(validators ...Validator[string]) CmdInputWithDefaultAndValidator[string] {
-	f.validators = validators
+func (f *stringCmdInput) WithValidator(validator Validator[string]) CmdInputWithDefaultAndValidator[string] {
+	f.validator = &genericValidatorWrapper[string]{validator: validator}
 	return f
 }
 
-func (f *StringCmdInput) getValidators() []Validator[string] {
-	return f.validators
+func (f *stringCmdInput) getValidator() validatorAny {
+	return f.validator
 }
-
-func (f *StringCmdInput) AsFlag() CmdFlag {
+func (f *stringCmdInput) AsFlag() CmdFlag {
 	return f
 }
 
-func (f *StringCmdInput) AsArgument() CmdArg {
+func (f *stringCmdInput) AsArgument() CmdArg {
 	return f
 }
 
-func (f *StringCmdInput) WithLongDescription(longDescription string) CmdArg {
+func (f *stringCmdInput) WithLongDescription(longDescription string) CmdArg {
 	f.lDescription = longDescription
 	return f
 }
 
-func (f *StringCmdInput) longDescription() string {
+func (f *stringCmdInput) longDescription() string {
 	return f.lDescription
 }
 
-func (f *StringCmdInput) hasDefault() bool {
+func (f *stringCmdInput) hasDefault() bool {
 	return f.defaultValue != nil
 }
 
-func (f *StringCmdInput) getDefault() any {
+func (f *stringCmdInput) getDefault() any {
 	if f.defaultValue != nil {
 		return *f.defaultValue
 	}
 	return ""
 }
 
-func (f *StringCmdInput) isRequired() bool {
+func (f *stringCmdInput) isRequired() bool {
 	return f.required
 }
