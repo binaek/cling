@@ -22,7 +22,7 @@ func Hydrate[T any](ctx context.Context, argArguments []string, destination *T) 
 	if destination == nil {
 		return errors.New("destination cannot be nil")
 	}
-	cmd, ok := CommandFromContext(ctx)
+	cmd, ok := commandFromContext(ctx)
 	if !ok {
 		return errors.New("invalid state - context is not derived from CLIng supplied context")
 	}

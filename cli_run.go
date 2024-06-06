@@ -79,7 +79,7 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
 
-	ctx = ContextWithCommand(ctx, command)
+	ctx = contextWithCommand(ctx, command)
 	err := command.execute(ctx, newArgs)
 	if err != nil {
 		return err
