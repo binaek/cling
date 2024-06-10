@@ -1,22 +1,26 @@
 package cling
 
-import "fmt"
+import (
+	"github.com/pkg/errors"
+)
 
-type StringLengthValidator struct {
-	min int
-	max int
+type stringValidator struct {
+	fn func(value string) error
 }
 
-func NewStringLengthValidator(min, max int) *StringLengthValidator {
-	return &StringLengthValidator{
-		min: min,
-		max: max,
-	}
+func (v *stringValidator) Validate(value string) error {
+	return v.fn(value)
 }
 
-func (v *StringLengthValidator) Validate(value string) error {
-	if len(value) < v.min || len(value) > v.max {
-		return fmt.Errorf("value %s length is out of range [%d, %d]", value, v.min, v.max)
+var ErrStringLen = errors.New("string length is not in range")
+
+func NewStringLengthValidator(min, max int) Validator[string] {
+	return &stringValidator{
+		fn: func(value string) error {
+			if len(value) < min || len(value) > max {
+				return errors.Wrapf(ErrStringLen, "value %s is not in range [%d, %d]", value, min, max)
+			}
+			return nil
+		},
 	}
-	return nil
 }

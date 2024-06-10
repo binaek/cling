@@ -1,132 +1,112 @@
 package cling
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
-func setFieldFromString(field reflect.Value, valueStr string) error {
+func setFieldFromString(field reflect.Value, valueStr string, validator Validator[any]) error {
+	var value any
+	var err error
+
 	switch field.Kind() {
 	case reflect.String:
-		return setString(field, valueStr)
+		value, err = parseString(valueStr)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return setInt(field, valueStr)
+		value, err = parseInt(valueStr, field.Type().Bits())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return setUint(field, valueStr)
+		value, err = parseUint(valueStr, field.Type().Bits())
 	case reflect.Bool:
-		return setBool(field, valueStr)
+		value, err = parseBool(valueStr)
 	case reflect.Float32, reflect.Float64:
-		return setFloat(field, valueStr)
+		value, err = parseFloat(valueStr, field.Type().Bits())
 	case reflect.Slice:
-		return setSlice(field, valueStr)
+		if strings.Contains(valueStr, ",") {
+			values := strings.Split(valueStr, ",")
+			for _, value := range values {
+				if err := setSlice(field, value, validator); err != nil {
+					return err
+				}
+			}
+			return nil
+		} else {
+			return setSlice(field, valueStr, validator)
+		}
 	default:
 		return fmt.Errorf("unsupported field type: %s", field.Type().Kind())
 	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := runValidator(value, validator); err != nil {
+		return err
+	}
+
+	field.Set(reflect.ValueOf(value).Convert(field.Type()))
+	return nil
 }
-func setSlice(field reflect.Value, valueStr string) error {
+
+func setSlice(field reflect.Value, valueStr string, validators ...Validator[any]) error {
 	elemType := field.Type().Elem()
+	var value any
+	var err error
+
 	switch elemType.Kind() {
 	case reflect.String:
-		return appendString(field, valueStr)
+		value, err = parseString(valueStr)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return appendInt(field, valueStr, elemType)
+		value, err = parseInt(valueStr, elemType.Bits())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return appendUint(field, valueStr, elemType)
+		value, err = parseUint(valueStr, elemType.Bits())
 	case reflect.Bool:
-		return appendBool(field, valueStr)
+		value, err = parseBool(valueStr)
 	case reflect.Float32, reflect.Float64:
-		return appendFloat(field, valueStr, elemType)
+		value, err = parseFloat(valueStr, elemType.Bits())
 	default:
 		return fmt.Errorf("unsupported slice element type: %s", elemType.Kind())
 	}
-}
 
-func setString(field reflect.Value, valueStr string) error {
-	field.SetString(valueStr)
-	return nil
-}
-
-func setInt(field reflect.Value, valueStr string) error {
-	valueInt, err := strconv.ParseInt(valueStr, 10, field.Type().Bits())
 	if err != nil {
 		return err
 	}
-	field.SetInt(valueInt)
-	return nil
-}
 
-func setUint(field reflect.Value, valueStr string) error {
-	valueUint, err := strconv.ParseUint(valueStr, 10, field.Type().Bits())
-	if err != nil {
+	if err := runValidator(value, validators...); err != nil {
 		return err
 	}
-	field.SetUint(valueUint)
+
+	field.Set(reflect.Append(field, reflect.ValueOf(value).Convert(elemType)))
 	return nil
 }
 
-func setBool(field reflect.Value, valueStr string) error {
-	valueBool, err := strconv.ParseBool(valueStr)
-	if err != nil {
-		if !errors.Is(err, strconv.ErrSyntax) {
+func parseString(valueStr string) (string, error) {
+	return valueStr, nil
+}
+
+func parseInt(valueStr string, bits int) (int64, error) {
+	return strconv.ParseInt(valueStr, 10, bits)
+}
+
+func parseUint(valueStr string, bits int) (uint64, error) {
+	return strconv.ParseUint(valueStr, 10, bits)
+}
+
+func parseBool(valueStr string) (bool, error) {
+	return strconv.ParseBool(valueStr)
+}
+
+func parseFloat(valueStr string, bits int) (float64, error) {
+	return strconv.ParseFloat(valueStr, bits)
+}
+
+func runValidator(value any, validators ...Validator[any]) error {
+	for _, validator := range validators {
+		if err := validator.Validate(value); err != nil {
 			return err
 		}
-		valueBool = true
 	}
-	field.SetBool(valueBool)
-	return nil
-}
-
-func setFloat(field reflect.Value, valueStr string) error {
-	valueFloat, err := strconv.ParseFloat(valueStr, field.Type().Bits())
-	if err != nil {
-		return err
-	}
-	field.SetFloat(valueFloat)
-	return nil
-}
-
-func appendString(field reflect.Value, valueStr string) error {
-	field.Set(reflect.Append(field, reflect.ValueOf(valueStr)))
-	return nil
-}
-
-func appendInt(field reflect.Value, valueStr string, elemType reflect.Type) error {
-	valueInt, err := strconv.ParseInt(valueStr, 10, elemType.Bits())
-	if err != nil {
-		return err
-	}
-	field.Set(reflect.Append(field, reflect.ValueOf(valueInt).Convert(elemType)))
-	return nil
-}
-
-func appendUint(field reflect.Value, valueStr string, elemType reflect.Type) error {
-	valueUint, err := strconv.ParseUint(valueStr, 10, elemType.Bits())
-	if err != nil {
-		return err
-	}
-	field.Set(reflect.Append(field, reflect.ValueOf(valueUint).Convert(elemType)))
-	return nil
-}
-
-func appendBool(field reflect.Value, valueStr string) error {
-	valueBool, err := strconv.ParseBool(valueStr)
-	if err != nil {
-		if !errors.Is(err, strconv.ErrSyntax) {
-			return err
-		}
-		valueBool = true
-	}
-	field.Set(reflect.Append(field, reflect.ValueOf(valueBool)))
-	return nil
-}
-
-func appendFloat(field reflect.Value, valueStr string, elemType reflect.Type) error {
-	valueFloat, err := strconv.ParseFloat(valueStr, elemType.Bits())
-	if err != nil {
-		return err
-	}
-	field.Set(reflect.Append(field, reflect.ValueOf(valueFloat).Convert(elemType)))
 	return nil
 }
