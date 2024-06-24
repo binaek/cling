@@ -92,6 +92,9 @@ func (command *Command) WithArgument(arg CmdArg) *Command {
 }
 
 func (command *Command) execute(ctx context.Context, args []string) error {
+	if command.action == nil {
+		return errors.Wrapf(ErrInvalidCommand, "command '%s' has no action", command.name)
+	}
 	if err := command.executePrerun(ctx, args); err != nil {
 		return err
 	}
@@ -158,7 +161,7 @@ func (c *Command) validate() error {
 	if c.name == "" {
 		return errors.Wrapf(ErrInvalidCommand, "command name is required")
 	}
-	if c.action == nil {
+	if c.action == nil && len(c.children) == 0 {
 		return errors.Wrapf(ErrInvalidCommand, "command action is required in command '%s'", c.name)
 	}
 	if err := c.validateFlagsAndArgs(); err != nil {
