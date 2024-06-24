@@ -13,14 +13,12 @@ var ErrInvalidCLIngConfig = errors.New("invalid CLIng configuration")
 
 // Run executes the CLI with the given command line arguments.
 func (c *CLI) Run(ctx context.Context, args []string) error {
-	if len(c.name) == 0 {
-		// get the executable name
-		exec, err := os.Executable()
-		if err != nil {
-			return errors.Wrap(ErrInvalidCLIngConfig, "could not resolve executable name")
-		}
-		c.name = filepath.Base(exec)
+	// get the executable name
+	exec, err := os.Executable()
+	if err != nil {
+		return errors.Wrap(ErrInvalidCLIngConfig, "could not resolve executable name")
 	}
+	c.name = filepath.Base(exec)
 
 	// validate the CLI
 	if err := c.validate(); err != nil {
@@ -80,12 +78,16 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
 
 	ctx = contextWithCommand(ctx, command)
-	err := command.execute(ctx, newArgs)
+	err = command.execute(ctx, newArgs)
 	if err != nil {
+		if errors.Is(err, ErrInvalidCommand) {
+			c.printUsage()
+		}
 		return err
 	}
 	return nil
 }
+
 func reconstructCmdLineFromFlags(f map[string][]string) []string {
 	flags := []string{}
 	for k, v := range f {
