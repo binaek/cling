@@ -109,18 +109,18 @@ func hydrateArgs(cmd *Command, args []string, destination reflect.Value, targets
 	return nil
 }
 
-func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value, targets configTargets) error {
+func hydrateFlags(cmd *Command, flags map[string][]string, destination reflect.Value, targets configTargets) error {
 	// get defined flags
 	for _, flag := range cmd.flags {
 		name := flag.Name()
-		values, ok := v[name]
+		flagValues, definedInFlags := flags[name]
 
 		validator := NoOpValidator()
 		if flagWithValidator, ok := flag.(ValidatorProvider); ok && flagWithValidator.getValidator() != nil {
 			validator = flagWithValidator.getValidator()
 		}
 
-		if !ok && flag.hasDefault() {
+		if !definedInFlags && flag.hasDefault() {
 			// get the default
 			def := flag.getDefault()
 			// run it through the validator
@@ -129,30 +129,31 @@ func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value
 			}
 			// if def is a slice
 			if reflect.TypeOf(def).Kind() == reflect.Slice {
-				values = []string{}
+				flagValues = []string{}
 				for i := 0; i < reflect.ValueOf(def).Len(); i++ {
-					values = append(values, fmt.Sprint(reflect.ValueOf(def).Index(i).Interface()))
+					flagValues = append(flagValues, fmt.Sprint(reflect.ValueOf(def).Index(i).Interface()))
 				}
 			} else {
-				values = []string{fmt.Sprint(def)}
+				flagValues = []string{fmt.Sprint(def)}
 			}
 		}
 
-		if len(values) == 0 {
+		// if not defined in flags and has env sources
+		if !definedInFlags && len(flag.envSources()) > 0 {
 			// try to populate from env
 			for _, envKey := range flag.envSources() {
 				if val, ok := os.LookupEnv(envKey); ok {
-					values = []string{val}
+					flagValues = []string{val}
 				}
 			}
 		}
 
-		if (flag.isRequired()) && (!ok || len(values) == 0) {
+		if (flag.isRequired()) && (len(flagValues) == 0) {
 			return errors.Errorf("missing required flag '%s'", flag.Name())
 		}
 
-		target, ok := targets[name]
-		if !ok {
+		target, definedInFlags := targets[name]
+		if !definedInFlags {
 			return errors.Errorf("could not find target for '%s'", name)
 		}
 		field := destination.Field(target.structIdx)
@@ -164,13 +165,13 @@ func hydrateFlags(cmd *Command, v map[string][]string, destination reflect.Value
 			return errors.Errorf("field for flag '%s' cannot be set", name)
 		}
 		if field.Kind() == reflect.Slice {
-			for _, valueStr := range values {
+			for _, valueStr := range flagValues {
 				if err := setFieldFromString(field, valueStr, validator); err != nil {
 					return errors.Wrapf(err, "failed to set flag '%s'", name)
 				}
 			}
 		} else {
-			valueStr := values[0]
+			valueStr := flagValues[0]
 			if err := setFieldFromString(field, valueStr, validator); err != nil {
 				return errors.Wrapf(err, "failed to set flag '%s'", name)
 			}
