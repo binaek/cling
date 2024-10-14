@@ -15,8 +15,8 @@ var ErrInvalidCLIngConfig = errors.New("invalid CLIng configuration")
 // Run executes the CLI with the given command line arguments.
 func (c *CLI) Run(ctx context.Context, args []string) error {
 	// get the executable name
-	exec, execErr := os.Executable()
-	if execErr != nil {
+	exec, err := os.Executable()
+	if err != nil {
 		return errors.Wrap(ErrInvalidCLIngConfig, "could not resolve executable name")
 	}
 	c.name = filepath.Base(exec)
@@ -84,14 +84,17 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	execErr = command.execute(ctx, newArgs)
+
+	execErr := command.execute(ctx, newArgs)
 	if execErr != nil {
 		if errors.Is(execErr, ErrInvalidCommand) {
 			c.printUsage()
 		}
 	}
+
 	if c.postRun != nil {
 		if err := c.postRun(ctx, newArgs); err != nil {
+			// if post run throws an error - join with the execErr
 			execErr = stdErrs.Join(execErr, err)
 		}
 	}
