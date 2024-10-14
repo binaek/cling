@@ -78,12 +78,22 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
 
 	ctx = contextWithCommand(ctx, command)
+	if c.preRun != nil {
+		if err := c.preRun(ctx, newArgs); err != nil {
+			return err
+		}
+	}
 	err = command.execute(ctx, newArgs)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCommand) {
 			c.printUsage()
 		}
 		return err
+	}
+	if c.postRun != nil {
+		if err := c.postRun(ctx, newArgs); err != nil {
+			return err
+		}
 	}
 	return nil
 }
