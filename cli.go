@@ -12,6 +12,9 @@ type CLI struct {
 	version         string
 	commands        []*Command
 
+	preRun  CommandHook
+	postRun CommandHook
+
 	stdout io.Writer
 	stderr io.Writer
 }
@@ -19,6 +22,18 @@ type CLI struct {
 // WithCommand adds a command to the CLI
 func (cli *CLI) WithCommand(command *Command) *CLI {
 	cli.commands = append(cli.commands, command)
+	return cli
+}
+
+// WithPreRun sets the pre-run hook for the CLI
+func (cli *CLI) WithPreRun(hook CommandHook) *CLI {
+	cli.preRun = hook
+	return cli
+}
+
+// WithPostRun sets the post-run hook for the CLI
+func (cli *CLI) WithPostRun(hook CommandHook) *CLI {
+	cli.postRun = hook
 	return cli
 }
 
@@ -41,6 +56,8 @@ func NewCLI(name string, version string) *CLI {
 		version: version,
 		stdout:  os.Stdout,
 		stderr:  os.Stderr,
+		preRun:  NoOpHook,
+		postRun: NoOpHook,
 	}
 	return cli
 }

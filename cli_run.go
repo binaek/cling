@@ -2,6 +2,7 @@ package cling
 
 import (
 	"context"
+	stdErrs "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -78,14 +79,26 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	newArgs := append(positionals, reconstructCmdLineFromFlags(flags)...)
 
 	ctx = contextWithCommand(ctx, command)
-	err = command.execute(ctx, newArgs)
-	if err != nil {
-		if errors.Is(err, ErrInvalidCommand) {
+	if c.preRun != nil {
+		if err := c.preRun(ctx, newArgs); err != nil {
+			return err
+		}
+	}
+
+	execErr := command.execute(ctx, newArgs)
+	if execErr != nil {
+		if errors.Is(execErr, ErrInvalidCommand) {
 			c.printUsage()
 		}
-		return err
 	}
-	return nil
+
+	if c.postRun != nil {
+		if err := c.postRun(ctx, newArgs); err != nil {
+			// if post run throws an error - join with the execErr
+			execErr = stdErrs.Join(execErr, err)
+		}
+	}
+	return execErr
 }
 
 func reconstructCmdLineFromFlags(f map[string][]string) []string {
