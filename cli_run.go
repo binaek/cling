@@ -2,6 +2,7 @@ package cling
 
 import (
 	"context"
+	stdErrs "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,8 +15,8 @@ var ErrInvalidCLIngConfig = errors.New("invalid CLIng configuration")
 // Run executes the CLI with the given command line arguments.
 func (c *CLI) Run(ctx context.Context, args []string) error {
 	// get the executable name
-	exec, err := os.Executable()
-	if err != nil {
+	exec, execErr := os.Executable()
+	if execErr != nil {
 		return errors.Wrap(ErrInvalidCLIngConfig, "could not resolve executable name")
 	}
 	c.name = filepath.Base(exec)
@@ -83,19 +84,18 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	err = command.execute(ctx, newArgs)
-	if err != nil {
-		if errors.Is(err, ErrInvalidCommand) {
+	execErr = command.execute(ctx, newArgs)
+	if execErr != nil {
+		if errors.Is(execErr, ErrInvalidCommand) {
 			c.printUsage()
 		}
-		return err
 	}
 	if c.postRun != nil {
 		if err := c.postRun(ctx, newArgs); err != nil {
-			return err
+			execErr = stdErrs.Join(execErr, err)
 		}
 	}
-	return nil
+	return execErr
 }
 
 func reconstructCmdLineFromFlags(f map[string][]string) []string {
