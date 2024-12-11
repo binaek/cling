@@ -10,7 +10,12 @@ func NewStringCmdInput(name string) CmdInputWithDefaultAndValidator[string] {
 	return newGenericCmdInput[string](name)
 }
 
-type genericCmdInput[T int | string] struct {
+// NewBoolCmdInput creates a new boolean command input with the given name.
+func NewBoolCmdInput(name string) CmdInputWithDefaultAndValidator[bool] {
+	return newGenericCmdInput[bool](name)
+}
+
+type genericCmdInput[T int | string | bool] struct {
 	name         string
 	defaultValue *T
 	required     bool
@@ -20,7 +25,7 @@ type genericCmdInput[T int | string] struct {
 	validator    validatorAny
 }
 
-func newGenericCmdInput[T int | string](name string) CmdInputWithDefaultAndValidator[T] {
+func newGenericCmdInput[T int | string | bool](name string) CmdInputWithDefaultAndValidator[T] {
 	return &genericCmdInput[T]{
 		name: name,
 	}

@@ -19,6 +19,10 @@ func setFieldFromString(field reflect.Value, valueStr string, validator Validato
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		value, err = parseUint(valueStr, field.Type().Bits())
 	case reflect.Bool:
+		if valueStr == "" {
+			// just having the flag means it's true
+			valueStr = "true"
+		}
 		value, err = parseBool(valueStr)
 	case reflect.Float32, reflect.Float64:
 		value, err = parseFloat(valueStr, field.Type().Bits())
@@ -63,6 +67,10 @@ func setSlice(field reflect.Value, valueStr string, validators ...Validator[any]
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		value, err = parseUint(valueStr, elemType.Bits())
 	case reflect.Bool:
+		if valueStr == "" {
+			// just having the flag means it's true
+			valueStr = "true"
+		}
 		value, err = parseBool(valueStr)
 	case reflect.Float32, reflect.Float64:
 		value, err = parseFloat(valueStr, elemType.Bits())
