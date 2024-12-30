@@ -10,75 +10,75 @@ Command line inputs are expressed as Go annotated `structs` that are hydrated at
 package main
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+  "context"
+  "fmt"
+  "os"
+  "os/signal"
+  "syscall"
 
-	"github.com/binaek/cling"
-	"github.com/pkg/errors"
+  "github.com/binaek/cling"
+  "github.com/pkg/errors"
 )
 
 // Version of the program
 var version = "0.0.1-dev.0"
 
 func main() {
-	// create a context so that we can shut things down gracefully when we receive a SIGNAL
-	// we can pass this context to the CLI and it will be used for all downstream calls
-	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGKILL)
+  // create a context so that we can shut things down gracefully when we receive a SIGNAL
+  // we can pass this context to the CLI and it will be used for all downstream calls
+  ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGKILL)
 
-	cli := setupCLI(ctx, version)
-	if err := cli.Run(ctx, os.Args); err != nil {
-		fmt.Println("Error:", err)
-	}
+  cli := setupCLI(ctx, version)
+  if err := cli.Run(ctx, os.Args); err != nil {
+    fmt.Println("Error:", err)
+  }
 }
 
 type startCmdInput struct {
-	AnyArbitraryName     string `cling-name:"string-input"`
-	AnotherArbitraryName int    `cling-name:"int-input"`
+  AnyArbitraryName     string `cling-name:"string-input"`
+  AnotherArbitraryName int    `cling-name:"int-input"`
 }
 
 // This is the handler for the `start` command.
 // It will be called when the `start` command is executed in the CLI.
 // The `args` parameter will contain the arguments passed to the command without the executable.
 func startCmdHandler(ctx context.Context, args []string) error {
-	input := startCmdInput{}
+  input := startCmdInput{}
 
-	// Hydrate the input struct with the arguments passed to the command
-	// This will populate the input struct with the values of the flags passed to the command
-	if err := cling.Hydrate(ctx, args, &input); err != nil {
-		return errors.Wrap(err, "failed to hydrate input arguments")
-	}
+  // Hydrate the input struct with the arguments passed to the command
+  // This will populate the input struct with the values of the flags passed to the command
+  if err := cling.Hydrate(ctx, args, &input); err != nil {
+    return errors.Wrap(err, "failed to hydrate input arguments")
+  }
 
-	fmt.Println("String input:", input.AnyArbitraryName)
-	fmt.Println("Int input:", input.AnotherArbitraryName)
+  fmt.Println("String input:", input.AnyArbitraryName)
+  fmt.Println("Int input:", input.AnotherArbitraryName)
 
-	return nil
+  return nil
 }
 
 func setupCLI(ctx context.Context, version string) *cling.CLI {
-	cli := cling.NewCLI("program", version).
-		WithDescription("This is an example go program").
-		WithCommand(
-			cling.NewCommand("start", startCmdHandler).
-				WithDescription("Start the program").
-				WithFlag(
-					cling.
-						NewStringCmdInput("string-input"). // MUST match with the a field in the input struct
-						Required().                        // Make this flag required
-						WithDescription("A string input"). // Give a description for help content generation
-						AsFlag(),                          // This is important to tell cling that this is a flag
-				).
-				WithFlag(
-					cling.
-						NewIntCmdInput("int-input").    // MUST match with the a field in the input struct
-						WithDefault(1000).              // Set a default value - this is not required
-						WithDescription("A INT input"). // Give a description for help content generation
-						AsFlag(),                       // This is important to tell cling that this is a flag
-				),
-		)
-	return cli
+  cli := cling.NewCLI("program", version).
+    WithDescription("This is an example go program").
+    WithCommand(
+      cling.NewCommand("start", startCmdHandler).
+        WithDescription("Start the program").
+        WithFlag(
+          cling.
+            NewStringCmdInput("string-input"). // MUST match with the a field in the input struct
+            Required().                        // Make this flag required
+            WithDescription("A string input"). // Give a description for help content generation
+            AsFlag(),                          // This is important to tell cling that this is a flag
+        ).
+        WithFlag(
+          cling.
+            NewIntCmdInput("int-input").    // MUST match with the a field in the input struct
+            WithDefault(1000).              // Set a default value - this is not required
+            WithDescription("A INT input"). // Give a description for help content generation
+            AsFlag(),                       // This is important to tell cling that this is a flag
+        ),
+    )
+  return cli
 }
 
 ```
