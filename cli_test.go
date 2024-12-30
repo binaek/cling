@@ -161,9 +161,27 @@ func TestHelp(t *testing.T) {
 		).
 		WithCommand(NewCommand("subcmd2", action))
 
-	ctx := context.Background()
-	err := cli.Run(ctx, []string{"test", "subcmd1", "--help"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	t.Run("TopLevel", func(t *testing.T) {
+		ctx := context.Background()
+		err := cli.Run(ctx, []string{"test", "--help"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("SubCommand", func(t *testing.T) {
+		ctx := context.Background()
+		err := cli.Run(ctx, []string{"test", "subcmd1", "--help"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("SubCommandSubCommand", func(t *testing.T) {
+		ctx := context.Background()
+		err := cli.Run(ctx, []string{"test", "subcmd1", "subcmd11", "--help"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 }

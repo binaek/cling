@@ -28,10 +28,6 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 
 	// parse the arguments
 	flags, positionals := parseArguments(args)
-	if len(positionals) < 2 {
-		c.printUsage()
-		return errors.New("missing command")
-	}
 
 	// remove the executable name
 	positionals = positionals[1:]
@@ -40,6 +36,16 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	if _, ok := flags["version"]; ok {
 		fmt.Printf("%s v%s\n", c.name, c.version)
 		return nil
+	}
+
+	if _, ok := flags["help"]; ok && len(positionals) == 0 {
+		c.printUsage()
+		return nil
+	}
+
+	if len(positionals) < 1 {
+		c.printUsage()
+		return errors.New("missing command")
 	}
 
 	command := c.findCommand(positionals)
