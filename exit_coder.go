@@ -19,6 +19,10 @@ func (e *exitCoder) Error() string {
 	return e.err.Error()
 }
 
+func (e *exitCoder) Unwrap() error {
+	return e.err
+}
+
 func NewExitCoder(err error, code int) ExitCoder {
 	return &exitCoder{
 		code: code,
