@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 func (c *CLI) printUsage() {
@@ -74,9 +76,21 @@ func (c *Command) printHelp(cli *CLI) error {
 	if len(c.flags) > 0 {
 		buff := bytes.NewBuffer(nil)
 		buff.WriteString("Flags:\n")
-		flagsTable := tablewriter.NewWriter(buff)
-		flagsTable.SetBorder(false)
-		flagsTable.SetColumnSeparator("")
+		flagsTable := tablewriter.NewTable(buff,
+			tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
+				Borders: tw.BorderNone,
+				Symbols: tw.NewSymbols(tw.StyleASCII),
+				Settings: tw.Settings{
+					Separators: tw.Separators{BetweenRows: tw.Off, BetweenColumns: tw.Off},
+					Lines:      tw.Lines{ShowFooterLine: tw.Off},
+				},
+			})),
+			tablewriter.WithConfig(tablewriter.Config{
+				MaxWidth: 100,
+				Row:      tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignLeft}},
+			}),
+		)
+
 		for _, flag := range c.flags {
 			flagsTable.Append(
 				[]string{
