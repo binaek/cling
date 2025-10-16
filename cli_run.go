@@ -28,19 +28,25 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 
 	// parse the arguments
 	flags, positionals := parseArguments(args)
+
 	if len(positionals) < 2 {
-		c.printUsage()
+		// do we have a --help in the flags
+		if _, ok := flags["help"]; ok {
+			c.printUsage()
+			return nil
+		}
+
+		// do we have a --version in the flags
+		if _, ok := flags["version"]; ok {
+			fmt.Printf("%s v%s\n", c.name, c.version)
+			return nil
+		}
+
 		return errors.New("missing command")
 	}
 
 	// remove the executable name
 	positionals = positionals[1:]
-
-	// do we have a --version in the flags
-	if _, ok := flags["version"]; ok {
-		fmt.Printf("%s v%s\n", c.name, c.version)
-		return nil
-	}
 
 	command := c.findCommand(positionals)
 	if command == nil {
@@ -73,6 +79,20 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 	for _, flag := range command.flags {
 		if !flag.isRequired() && !flag.hasDefault() {
 			return fmt.Errorf("flag %s has no default value but is not required", flag.Name())
+		}
+	}
+
+	// if a passed in flag is not defined in the command, return an error
+	for flagName, _ := range flags {
+		isAcceptable := false
+		for _, cmdFlag := range command.flags {
+			if cmdFlag.Name() == flagName {
+				isAcceptable = true
+				break
+			}
+		}
+		if !isAcceptable {
+			return fmt.Errorf("flag '--%s' is not defined for command '%s'", flagName, command.name)
 		}
 	}
 
