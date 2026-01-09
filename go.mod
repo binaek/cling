@@ -3,6 +3,7 @@ module github.com/binaek/cling
 go 1.22.0
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/olekukonko/tablewriter v1.1.0
 	github.com/pkg/errors v0.9.1
 )

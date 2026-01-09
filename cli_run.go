@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 )
 
@@ -38,7 +39,14 @@ func (c *CLI) Run(ctx context.Context, args []string) error {
 
 		// do we have a --version in the flags
 		if _, ok := flags["version"]; ok {
-			fmt.Printf("%s v%s\n", c.name, c.version)
+			// check if the version is a valid semver
+			if _, err := semver.NewVersion(c.version); err != nil {
+				// if not, print it as is
+				fmt.Printf(c.version)
+			} else {
+				// if it is, print it as a semver
+				fmt.Printf("%s v%s\n", c.name, c.version)
+			}
 			return nil
 		}
 

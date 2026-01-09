@@ -86,20 +86,28 @@ func (c *Command) printHelp(cli *CLI) error {
 				},
 			})),
 			tablewriter.WithConfig(tablewriter.Config{
-				MaxWidth: 100,
+				MaxWidth: 600,
 				Row:      tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignLeft}},
 			}),
 		)
 
 		for _, flag := range c.flags {
+			description := flag.Description()
+			if flag.isRequired() {
+				description = fmt.Sprintf("%s (required)", description)
+			}
+			if flag.hasDefault() {
+				description = fmt.Sprintf("%s (default: %v)", description, flag.getDefault())
+			}
+
 			flagsTable.Append(
 				[]string{
 					fmt.Sprintf("--%s", flag.Name()),
-					flag.Description(),
+					description,
 				},
 			)
 		}
-		flagsTable.Render()
+		_ = flagsTable.Render()
 
 		fmt.Fprintln(cli.stdout)
 		fmt.Fprintln(cli.stdout, buff.String())

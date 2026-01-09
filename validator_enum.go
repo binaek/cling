@@ -21,12 +21,12 @@ func (v *comparatorValidator[T]) Validate(value T) error {
 
 // NewEnumValidator creates a new validator that checks if the value is one of the allowed values.
 func NewEnumValidator[T comparable](allowedValues ...T) Validator[T] {
-	return NewComparatorValidator[T](func(value T) error {
+	return NewComparatorValidator(func(value T) error {
 		for _, allowed := range allowedValues {
 			if value == allowed {
 				return nil
 			}
 		}
-		return errors.Wrapf(ErrValidatorFailed, "value '%v' is not in the allowed enum values", value)
+		return errors.Wrapf(ErrValidatorFailed, "value '%v' is not in the allowed enum values: %v", value, allowedValues)
 	})
 }
